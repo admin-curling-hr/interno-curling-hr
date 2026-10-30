@@ -39,10 +39,16 @@
 
   <section id="view-klubovi" class="hidden">
     <div class="toolbar">
-      <input id="cSearch" type="search" placeholder="Naziv, mjesto ili OIB" aria-label="Pretraži klubove">
+      <input id="cSearch" type="search" placeholder="Naziv, grad ili OIB" aria-label="Pretraži klubove">
+      <select id="cStatus" aria-label="Status članstva">
+        <option value="active">Aktivni klubovi</option>
+        <option value="inactive">Neaktivni klubovi</option>
+        <option value="all">Svi klubovi</option>
+      </select>
       <span class="spacer"></span>
       <button id="btnNewClub" class="btn btn-primary">Novi klub</button>
     </div>
+    <p class="stats" id="cStats"></p>
     <div class="card scroll"><table id="cTable"><thead></thead><tbody></tbody></table></div>
   </section>
 
@@ -60,6 +66,7 @@
         <span class="spacer"></span>
         <button id="btnNewTeam" class="btn btn-primary">Nova ekipa</button>
       </div>
+      <p class="stats" id="tStats"></p>
       <div class="card scroll"><table id="tTable"><thead></thead><tbody></tbody></table></div>
     </div>
   </section>
@@ -69,6 +76,13 @@
       <h2>Mapa stupaca</h2>
       <p class="help">Prikazna i interna imena stupaca svih registara. Ne sadrži osobne podatke – možete je poslati pri dogradnji aplikacije.</p>
       <div id="colMaps"></div>
+    </div>
+    <div class="card tool">
+      <h2>Skupni upis državljanstva</h2>
+      <p>Postojeće vrijednosti stupca <em>Državljanstvo</em> u registru igrača. Označite koje vrijednosti treba zamijeniti s „<span id="drzTarget"></span>“ i pokrenite upis. Igrači s neoznačenim vrijednostima ostaju nepromijenjeni.</p>
+      <div id="drzList"></div>
+      <button id="btnDrz" class="btn btn-primary">Upiši državljanstvo</button>
+      <p id="drzProgress" aria-live="polite"></p>
     </div>
     <div class="card tool">
       <h2>Prepisivanje prethodnih klubova u povijest</h2>
@@ -120,6 +134,7 @@ const K = {                     // Registar klubova
   mandatDo: "Datumistekamandata",
   kontakt: "Kontaktosoba",
   email: "E_x002d_adresa",
+  emailKlub: null,              // "E-adresa kluba" – interno ime se pronalazi po prikaznom imenu pri učitavanju
   predstavnici: "Predstavnici",
   vrsta: "Vrsta_x010d_lanstva",
   prijem: "Datumprijemau_x010d_lanstvo",
@@ -134,6 +149,8 @@ const E = {                     // Registar ekipa
   kategorija: "Kategorija",
   disciplina: "Disciplina"
 };
+
+const DEFAULT_DRZ = "hrvatsko";   // zadano državljanstvo novog igrača
 
 /* Kategorije: dob na zadnji 30. lipnja */
 const JUNIOR_DO = 21;   // mlađi od 21 → Junior
@@ -165,21 +182,22 @@ const PLAYER_FIX = [
     help: "Jedan događaj po retku, npr. „15.05.2020. Registracija: Vis“ ili „01.06.2017. Prestanak registracije: Legija“." }
 ];
 const CLUB_FORM = [
-  { k: "naziv", label: "Naziv", type: "text", req: true },
-  { k: "puniNaziv", label: "Puni naziv", type: "text" },
+  { k: "naziv", label: "Kratko ime kluba", type: "text", req: true },
+  { k: "puniNaziv", label: "Puno ime kluba", type: "text" },
+  { k: "adresa", label: "Adresa", type: "text" },
+  { k: "mjesto", label: "Grad", type: "text" },
+  { k: "emailKlub", label: "E-adresa kluba", type: "text" },
   { k: "oib", label: "OIB", type: "text" },
   { k: "iban", label: "IBAN", type: "text" },
-  { k: "adresa", label: "Adresa", type: "text" },
-  { k: "mjesto", label: "Mjesto", type: "text" },
   { k: "datumOsnutka", label: "Datum osnutka", type: "date" },
   { k: "predsjednik", label: "Predsjednik", type: "text" },
-  { k: "mandatDo", label: "Datum isteka mandata", type: "date" },
-  { k: "kontakt", label: "Kontakt osoba", type: "text" },
-  { k: "email", label: "E-adresa", type: "text" },
-  { k: "predstavnici", label: "Predstavnici", type: "text" },
+  { k: "mandatDo", label: "Mandat do", type: "date" },
+  { k: "kontakt", label: "Ovlaštena kontakt osoba", type: "text" },
+  { k: "email", label: "E-adresa kontakt osobe", type: "text" },
+  { k: "predstavnici", label: "Predstavnici u Skupštini HCS-a", type: "text" },
   { k: "vrsta", label: "Vrsta članstva", type: "text" },
-  { k: "prijem", label: "Datum prijema u članstvo", type: "date" },
-  { k: "prestanak", label: "Datum prestanka članstva", type: "date" },
+  { k: "prijem", label: "Prijem u članstvo", type: "date" },
+  { k: "prestanak", label: "Prestanak članstva", type: "date" },
   { k: "napomena", label: "Napomena", type: "text" }
 ];
 
@@ -213,12 +231,14 @@ function setStatus(msg, kind = "info") {
 function show(sel, on = true) { $(sel).classList.toggle("hidden", !on); }
 const toast = (msg) => Shell.toast(msg);
 
-/* Datumi: SharePoint "date only" vraća ponoć lokalnog vremena sitea izraženu u UTC-u.
-   +12 h pa UTC datum daje ispravan kalendarski dan neovisno o vremenskoj zoni preglednika. */
+/* Datumi: SharePoint vraća trenutak u UTC-u. Kalendarski dan uvijek se čita u vremenskoj zoni
+   Saveza (Europe/Zagreb), neovisno o tome je li stupac "samo datum" (ponoć po lokalnom vremenu)
+   ili "datum i vrijeme" (aplikacija upisuje podne UTC). */
+const ZG_DATE = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Zagreb", year: "numeric", month: "2-digit", day: "2-digit" });
 function isoDate(v) {
   if (!v) return "";
   const d = new Date(v); if (isNaN(d)) return "";
-  return new Date(d.getTime() + 12 * 3600e3).toISOString().slice(0, 10);
+  return ZG_DATE.format(d);   // en-CA daje oblik GGGG-MM-DD
 }
 function hrDate(iso) { if (!iso) return ""; const [y, m, d] = iso.split("-"); return d + "." + m + "." + y + "."; }
 function graphDate(iso) { return iso ? iso + "T12:00:00Z" : null; }
@@ -280,6 +300,7 @@ async function loadAll() {
       const cols = await graph("/sites/" + site.id + "/lists/" + l.id + "/columns");
       S.cols[key] = Object.fromEntries(cols.value.map((c) => [c.name, c]));
     }
+    resolveByDisplayName();
     checkMapping();
     [S.players, S.clubs, S.teams] = await Promise.all([loadList("igraci"), loadList("klubovi"), S.lists.ekipe ? loadList("ekipe") : Promise.resolve([])]);
     setStatus("");
@@ -288,13 +309,23 @@ async function loadAll() {
   } catch (e) { setStatus(e.message, "error"); }
 }
 
+/* Stupci dodani naknadno: interno ime traži se po prikaznom imenu,
+   pa ga nije potrebno očitavati iz mape stupaca. */
+const BY_DISPLAY = [["klubovi", K, "emailKlub", "E-adresa kluba"]];
+function resolveByDisplayName() {
+  for (const [list, map, key, display] of BY_DISPLAY) {
+    if (map[key]) continue;
+    const col = Object.values(S.cols[list] || {}).find((c) => c.displayName === display);
+    if (col) map[key] = col.name;
+  }
+}
 function checkMapping() {
   const miss = [];
   for (const [k, n] of Object.entries(P)) {
     const base = n.endsWith("LookupId") ? n.slice(0, -8) : n;
     if (!S.cols.igraci[base]) miss.push("Registar igrača: " + k + " → " + base);
   }
-  for (const [k, n] of Object.entries(K)) if (!S.cols.klubovi[n]) miss.push("Registar klubova: " + k + " → " + n);
+  for (const [k, n] of Object.entries(K)) if (!n || !S.cols.klubovi[n]) miss.push("Registar klubova: " + k + " → " + (n || "stupac nije pronađen po prikaznom imenu"));
   if (S.cols.ekipe) for (const [k, n] of Object.entries(E)) {
     const base = n.endsWith("LookupId") ? n.slice(0, -8) : n;
     if (!S.cols.ekipe[base]) miss.push("Registar ekipa: " + k + " → " + base);
@@ -493,31 +524,30 @@ function openPlayer(id) {
         ? '<li class="raw">' + esc(e.raw) + "</li>"
         : "<li" + (e.stop ? ' class="stop"' : "") + "><time>" + esc(e.date) + "</time>" + esc(e.type) + ": " + esc(e.club) + "</li>").join("") + "</ul>"
     : '<p class="help">Povijest još nije upisana.</p>';
-  const sub = esc("Reg. br. " + (pv(p, "broj") || "–")) + " · " + (act ? esc(playerClubName(p)) : "prestanak registracije " + esc(hrDate(isoDate(pv(p, "prestanak")))));
   const cat = category(p);
-  openDrawer(drawerHead(displayName(p), sub) +
+  openDrawer(drawerHead(displayName(p)) +
     '<div class="drawer-body">' +
-    "<h3>Registracija</h3>" +
-    dl([
-      ["Klub", esc(playerClubName(p))],
-      ["Datum registracije", esc(hrDate(isoDate(pv(p, "datumReg"))))],
-      ["Prestanak registracije", esc(hrDate(isoDate(pv(p, "prestanak"))))],
-      ["Kategorija", cat ? esc(cat) + ' <span class="help">(dob na ' + esc(hrDate(REF_DATE)) + ")</span>" : ""],
-      ["Zdravstveno", act ? '<span class="badge ' + h.cls + '">' + esc(h.label) + "</span>" : esc(hrDate(isoDate(pv(p, "zdravstveno"))))]
-    ]) +
     "<h3>Osobni podaci</h3>" +
     dl([
       ["Registarski broj", esc(pv(p, "broj"))],
       ["Ime", esc(pv(p, "ime"))],
       ["Prezime", esc(pv(p, "prezime"))],
       ["Datum rođenja", esc(hrDate(isoDate(pv(p, "datumRod"))))],
+      ["Kategorija", cat ? esc(cat) + ' <span class="help">(dob na ' + esc(hrDate(REF_DATE)) + ")</span>" : ""],
       ["Državljanstvo", esc(pv(p, "drzavljanstvo"))],
+      ["Zdravstveno uvjerenje", act ? '<span class="badge ' + h.cls + '">' + esc(h.label) + "</span>" : esc(hrDate(isoDate(pv(p, "zdravstveno"))))],
       ["Napomena", esc(pv(p, "napomena"))]
+    ]) +
+    "<h3>Registracija</h3>" +
+    dl([
+      ["Klub", esc(playerClubName(p))],
+      ["Datum registracije", esc(hrDate(isoDate(pv(p, "datumReg"))))],
+      ["Prestanak registracije", esc(hrDate(isoDate(pv(p, "prestanak"))))]
     ]) +
     "<h3>Povijest registracija</h3>" + histHtml + modifiedLine(p) +
     "</div>" +
     '<div class="drawer-foot">' +
-    '<button class="btn btn-primary" data-act="reg">' + (act ? "Registracija u klub" : "Ponovna registracija") + "</button>" +
+    '<button class="btn btn-primary" data-act="reg">Registracija kluba</button>' +
     (act ? '<button class="btn" data-act="stop">Prestanak registracije</button>' : "") +
     '<button class="btn" data-act="edit">Uredi podatke</button></div>');
   const d = $("#drawer");
@@ -631,7 +661,7 @@ function dupBroj(broj, exceptId) {
 function regForm(p) {
   const act = isActive(p);
   const defs = PLAYER_REG;
-  formDrawer(act ? "Registracija u klub" : "Ponovna registracija", esc(displayName(p)),
+  formDrawer("Registracija kluba", esc(displayName(p)),
     inputHtml(defs[0], act ? pv(p, "klub") : "", "igraci", P) + inputHtml(defs[1], todayIso(), "igraci", P) +
     '<p class="help">Klub i datum registracije igrača postaju novo trenutno stanje' + (act ? "" : ", prestanak registracije se briše") + ", a u povijest se dodaje redak o registraciji.</p>",
     "Registriraj",
@@ -695,7 +725,7 @@ function playerEditForm(p) {
 
 function newPlayerForm() {
   const defs = [BROJ_NEW, ...PLAYER_BASIC.slice(0, 2), ...PLAYER_REG, ...PLAYER_BASIC.slice(2)];
-  const vals = { broj: String(maxBroj(S.players) + 1), ime: "", prezime: "", klub: "", datumReg: todayIso(), datumRod: "", drzavljanstvo: "Hrvatska", zdravstveno: "", napomena: "" };
+  const vals = { broj: String(maxBroj(S.players) + 1), ime: "", prezime: "", klub: "", datumReg: todayIso(), datumRod: "", drzavljanstvo: DEFAULT_DRZ, zdravstveno: "", napomena: "" };
   formDrawer("Novi igrač", "", defs.map((d) => inputHtml(d, vals[d.k], "igraci", P)).join(""), "Spremi igrača",
     async (form) => {
       const v = readValues(form, defs); const err = validate(defs, v); if (err) throw new Error(err);
@@ -719,55 +749,48 @@ function clubPlayers(c, onlyActive = true) {
 const CLUB_COLS = [
   { key: "naziv", label: "Naziv", sort: (c) => clubName(c), cell: (c) => esc(clubName(c)) },
   { key: "puniNaziv", label: "Puni naziv", cls: "col-opt", sort: (c) => cv(c, "puniNaziv") || "", cell: (c) => esc(cv(c, "puniNaziv")) },
-  { key: "mjesto", label: "Mjesto", sort: (c) => cv(c, "mjesto") || "", cell: (c) => esc(cv(c, "mjesto")) },
+  { key: "mjesto", label: "Grad", sort: (c) => cv(c, "mjesto") || "", cell: (c) => esc(cv(c, "mjesto")) },
   { key: "predsjednik", label: "Predsjednik", cls: "col-opt", sort: (c) => cv(c, "predsjednik") || "", cell: (c) => esc(cv(c, "predsjednik")) },
-  { key: "igraca", label: "Igrača", cls: "num", sort: (c) => clubPlayers(c).length, cell: (c) => String(clubPlayers(c).length) },
+  { key: "igraca", label: "Aktivnih igrača", cls: "num", sort: (c) => clubPlayers(c).length, cell: (c) => String(clubPlayers(c).length) },
   { key: "clanstvo", label: "Članstvo", cls: "col-opt", sort: (c) => cv(c, "vrsta") || "",
     cell: (c) => { const end = isoDate(cv(c, "prestanak")); return end ? '<span class="badge b-off">prestanak ' + esc(hrDate(end)) + "</span>" : esc(cv(c, "vrsta")); } }
 ];
+function isActiveClub(c) { return !cv(c, "prestanak"); }
 function renderClubs() {
-  const q = $("#cSearch").value.trim().toLowerCase();
-  const rows = S.clubs.filter((c) => !q || [clubName(c), cv(c, "puniNaziv"), cv(c, "mjesto"), cv(c, "oib")].join(" ").toLowerCase().includes(q));
-  renderTable("#cTable", CLUB_COLS, rows, "klubovi", (c) => ({ cls: isoDate(cv(c, "prestanak")) ? "inactive" : "" }), "Nema klubova za ovu pretragu.");
+  const q = $("#cSearch").value.trim().toLowerCase(), st = $("#cStatus").value;
+  const rows = S.clubs.filter((c) =>
+    (st === "all" || (st === "active") === isActiveClub(c)) &&
+    (!q || [clubName(c), cv(c, "puniNaziv"), cv(c, "mjesto"), cv(c, "oib")].join(" ").toLowerCase().includes(q)));
+  const active = S.clubs.filter(isActiveClub);
+  const players = active.reduce((n, c) => n + clubPlayers(c).length, 0);
+  $("#cStats").innerHTML = "<span><b>" + active.length + "</b>aktivnih klubova</span><span><b>" + (S.clubs.length - active.length) +
+    "</b>neaktivnih</span><span><b>" + players + "</b>aktivnih igrača u aktivnim klubovima</span><span><b>" + rows.length + "</b>prikazano</span>";
+  renderTable("#cTable", CLUB_COLS, rows, "klubovi", (c) => ({ cls: isActiveClub(c) ? "" : "inactive" }), "Nema klubova za odabrane filtere.");
 }
-$("#cSearch").addEventListener("input", renderClubs);
+["#cSearch", "#cStatus"].forEach((s) => $(s).addEventListener("input", renderClubs));
 bindTable("#cTable", "klubovi", renderClubs, (id) => openClub(id));
 
+function clubFullName(c) { return cv(c, "puniNaziv") || clubName(c); }
 function openClub(id) {
   const c = clubById(id); if (!c) return;
-  const pl = clubPlayers(c).sort((a, b) => coll.compare(titleName(a), titleName(b)));
-  const d = (k) => esc(hrDate(isoDate(cv(c, k))));
   const email = cv(c, "email");
-  openDrawer(drawerHead(clubName(c), esc(cv(c, "puniNaziv") || "")) +
+  const val = (d) => {
+    const v = cv(c, d.k);
+    if (d.type === "date") return esc(hrDate(isoDate(v)));
+    if ((d.k === "email" || d.k === "emailKlub") && v) return '<a href="mailto:' + esc(v) + '">' + esc(v) + "</a>";
+    return esc(v);
+  };
+  openDrawer(drawerHead(clubFullName(c)) +
     '<div class="drawer-body">' +
-    dl([
-      ["Puni naziv", esc(cv(c, "puniNaziv"))], ["OIB", esc(cv(c, "oib"))], ["IBAN", esc(cv(c, "iban"))],
-      ["Adresa", esc(cv(c, "adresa"))], ["Mjesto", esc(cv(c, "mjesto"))], ["Datum osnutka", d("datumOsnutka")],
-      ["Predsjednik", esc(cv(c, "predsjednik"))], ["Mandat do", d("mandatDo")],
-      ["Kontakt osoba", esc(cv(c, "kontakt"))], ["E-adresa", email ? '<a href="mailto:' + esc(email) + '">' + esc(email) + "</a>" : ""],
-      ["Predstavnici", esc(cv(c, "predstavnici"))], ["Vrsta članstva", esc(cv(c, "vrsta"))],
-      ["Prijem u članstvo", d("prijem")], ["Prestanak članstva", d("prestanak")], ["Napomena", esc(cv(c, "napomena"))]
-    ]) +
-    (S.lists.ekipe ? (() => {
-      const tl = S.teams.filter((t) => String(ev(t, "klub")) === String(c.id)).sort((a, b) => coll.compare(ev(a, "ekipa") || "", ev(b, "ekipa") || ""));
-      return "<h3>Ekipe (" + tl.length + ")</h3>" + (tl.length
-        ? '<ul class="timeline">' + tl.map((t) => '<li><button class="link" data-tid="' + esc(t.id) + '">' + esc(ev(t, "ekipa")) + '</button> <span class="help">' + esc(teamLabel(t)) + "</span></li>").join("") + "</ul>"
-        : '<p class="help">Klub nema upisanih ekipa.</p>');
-    })() : "") +
-    "<h3>Registrirani igrači (" + pl.length + ")</h3>" +
-    (pl.length ? '<ul class="timeline">' + pl.map((p) => '<li><button class="link" data-pid="' + esc(p.id) + '">' + esc(displayName(p)) + '</button> <span class="help">reg. br. ' + esc(pv(p, "broj")) + "</span></li>").join("") + "</ul>"
-      : '<p class="help">Klub trenutno nema registriranih igrača.</p>') +
+    dl(CLUB_FORM.map((d) => [d.label, val(d)])) +
     modifiedLine(c) + "</div>" +
     '<div class="drawer-foot"><button class="btn btn-primary" data-act="edit">Uredi podatke</button></div>');
-  const dr = $("#drawer");
-  dr.querySelector('[data-act="edit"]').addEventListener("click", () => clubForm(c));
-  dr.querySelectorAll("[data-pid]").forEach((b) => b.addEventListener("click", () => { location.hash = "#igraci"; openPlayer(b.dataset.pid); }));
-  dr.querySelectorAll("[data-tid]").forEach((b) => b.addEventListener("click", () => { location.hash = "#ekipe"; openTeam(b.dataset.tid); }));
+  $("#drawer").querySelector('[data-act="edit"]').addEventListener("click", () => clubForm(c));
 }
 
 function clubForm(c) {
   const orig = c ? currentValues(CLUB_FORM, c, K) : Object.fromEntries(CLUB_FORM.map((d) => [d.k, ""]));
-  formDrawer(c ? "Uredi klub" : "Novi klub", c ? esc(clubName(c)) : "",
+  formDrawer(c ? "Uredi klub" : "Novi klub", c ? esc(clubFullName(c)) : "",
     CLUB_FORM.map((d) => inputHtml(d, orig[d.k], "klubovi", K)).join(""), "Spremi",
     async (form) => {
       const v = readValues(form, CLUB_FORM); const err = validate(CLUB_FORM, v); if (err) throw new Error(err);
@@ -787,11 +810,11 @@ const ev = (r, k) => r.f[E[k]];
 function teamClubName(t) { const id = ev(t, "klub"); return id ? clubName(clubById(id)) : ""; }
 function teamLabel(t) { return [ev(t, "kategorija"), ev(t, "disciplina")].filter(Boolean).join(" · "); }
 const TEAM_COLS = [
-  { key: "ekipa", label: "Ekipa", sort: (t) => ev(t, "ekipa") || "", cell: (t) => esc(ev(t, "ekipa")) },
-  { key: "kratko", label: "Kratko", cls: "col-opt", sort: (t) => ev(t, "kratko") || "", cell: (t) => esc(ev(t, "kratko")) },
-  { key: "klub", label: "Klub", sort: (t) => teamClubName(t) + " " + (ev(t, "ekipa") || ""), cell: (t) => esc(teamClubName(t)) },
   { key: "kategorija", label: "Kategorija", sort: (t) => ev(t, "kategorija") || "", cell: (t) => esc(ev(t, "kategorija")) },
-  { key: "disciplina", label: "Disciplina", sort: (t) => ev(t, "disciplina") || "", cell: (t) => esc(ev(t, "disciplina")) }
+  { key: "disciplina", label: "Disciplina", sort: (t) => ev(t, "disciplina") || "", cell: (t) => esc(ev(t, "disciplina")) },
+  { key: "klub", label: "Klub", sort: (t) => teamClubName(t) + " " + (ev(t, "ekipa") || ""), cell: (t) => esc(teamClubName(t)) },
+  { key: "ekipa", label: "Ekipa", sort: (t) => ev(t, "ekipa") || "", cell: (t) => esc(ev(t, "ekipa")) },
+  { key: "kratko", label: "Kratki naziv", cls: "col-opt", sort: (t) => ev(t, "kratko") || "", cell: (t) => esc(ev(t, "kratko")) }
 ];
 function fillSelect(sel, allLabel, options) {
   const el = $(sel), cur = el.value;
@@ -819,6 +842,11 @@ function renderTeams() {
     (!club || String(ev(t, "klub")) === club) &&
     (!cat || ev(t, "kategorija") === cat) &&
     (!disc || ev(t, "disciplina") === disc));
+  const clubsWithTeams = new Set(S.teams.map((t) => String(ev(t, "klub")))).size;
+  const perCat = choicesOf("ekipe", E.kategorija).map((k) => [k, S.teams.filter((t) => ev(t, "kategorija") === k).length]).filter(([, n]) => n);
+  $("#tStats").innerHTML = "<span><b>" + S.teams.length + "</b>ekipa</span><span><b>" + clubsWithTeams + "</b>klubova s ekipama</span>" +
+    perCat.map(([k, n]) => "<span><b>" + n + "</b>" + esc(k) + "</span>").join("") +
+    "<span><b>" + rows.length + "</b>prikazano</span>";
   renderTable("#tTable", TEAM_COLS, rows, "ekipe", () => ({}), "Nema ekipa za odabrane filtere.");
 }
 ["#tSearch", "#tClub", "#tCat", "#tDisc"].forEach((sel) => $(sel).addEventListener("input", renderTeams));
@@ -826,12 +854,14 @@ bindTable("#tTable", "ekipe", renderTeams, (id) => openTeam(id));
 
 function openTeam(id) {
   const t = S.teams.find((x) => String(x.id) === String(id)); if (!t) return;
-  openDrawer(drawerHead(ev(t, "ekipa") || "Ekipa", esc(teamClubName(t))) +
+  openDrawer(drawerHead(ev(t, "ekipa") || "Ekipa") +
     '<div class="drawer-body">' +
     dl([
-      ["Naziv ekipe", esc(ev(t, "ekipa"))], ["Kratki naziv", esc(ev(t, "kratko"))],
+      ["Naziv ekipe", esc(ev(t, "ekipa"))],
+      ["Kratki naziv ekipe", esc(ev(t, "kratko"))],
       ["Klub", ev(t, "klub") ? '<button class="link" data-cid="' + esc(ev(t, "klub")) + '">' + esc(teamClubName(t)) + "</button>" : ""],
-      ["Kategorija", esc(ev(t, "kategorija"))], ["Disciplina", esc(ev(t, "disciplina"))]
+      ["Kategorija", esc(ev(t, "kategorija"))],
+      ["Disciplina", esc(ev(t, "disciplina"))]
     ]) + modifiedLine(t) + "</div>" +
     '<div class="drawer-foot"><button class="btn btn-primary" data-act="edit">Uredi podatke</button></div>');
   const dr = $("#drawer");
@@ -890,8 +920,48 @@ function migrationText(p) {
 function migrationCandidates() {
   return S.players.filter((p) => !String(pv(p, "povijest") || "").trim()).map((p) => ({ p, text: migrationText(p) })).filter((x) => x.text);
 }
+/* Skupni upis državljanstva: označene su prazne i očito hrvatske vrijednosti, ostale (strani igrači) nisu */
+const LOOKS_HR = /^(|hr|hrv|hrvatska|hrvatsko|republika hrvatska|croatia|croatian)$/i;
+function drzGroups() {
+  const g = new Map();
+  for (const p of S.players) {
+    const v = String(pv(p, "drzavljanstvo") || "").trim();
+    if (v === DEFAULT_DRZ) continue;
+    if (!g.has(v)) g.set(v, []);
+    g.get(v).push(p);
+  }
+  return [...g.entries()].sort((a, b) => b[1].length - a[1].length);
+}
+function renderDrz() {
+  $("#drzTarget").textContent = DEFAULT_DRZ;
+  const done = S.players.filter((p) => String(pv(p, "drzavljanstvo") || "").trim() === DEFAULT_DRZ).length;
+  const groups = drzGroups();
+  $("#drzList").innerHTML = '<p class="help">Već upisano „' + esc(DEFAULT_DRZ) + "“: " + done + " igrača.</p>" +
+    (groups.length ? groups.map(([v, ps], i) =>
+      '<div class="row"><label style="font-weight:400"><input type="checkbox" data-i="' + i + '"' + (LOOKS_HR.test(v) ? " checked" : "") + "> " +
+      (v ? "„" + esc(v) + "“" : "<em>(prazno)</em>") + " – " + ps.length + " igrača</label></div>").join("")
+      : '<p class="help">Svi igrači već imaju upisano „' + esc(DEFAULT_DRZ) + "“.</p>");
+  $("#btnDrz").disabled = !groups.length;
+}
+$("#btnDrz").addEventListener("click", async () => {
+  const groups = drzGroups();
+  const picked = [...document.querySelectorAll("#drzList input[data-i]:checked")].flatMap((cb) => groups[Number(cb.dataset.i)][1]);
+  if (!picked.length) { toast("Nije označena nijedna vrijednost."); return; }
+  if (!confirm("Upisati državljanstvo „" + DEFAULT_DRZ + "“ za " + picked.length + " igrača?")) return;
+  const btn = $("#btnDrz"), prog = $("#drzProgress"); btn.disabled = true;
+  let ok = 0; const fails = [];
+  for (const [i, p] of picked.entries()) {
+    prog.textContent = "Upisujem " + (i + 1) + " / " + picked.length + "…";
+    try { await graph(itemPath("igraci", p.id) + "/fields", { method: "PATCH", body: { [P.drzavljanstvo]: DEFAULT_DRZ } }); p.f[P.drzavljanstvo] = DEFAULT_DRZ; ok++; }
+    catch (e) { fails.push(displayName(p) + ": " + e.message); }
+  }
+  prog.textContent = "Gotovo: upisano " + ok + (fails.length ? ", neuspjelo " + fails.length + ":\n" + fails.join("\n") : ".");
+  renderDrz();
+});
+
 function renderTools() {
   renderColMaps();
+  renderDrz();
   const c = migrationCandidates();
   $("#migInfo").textContent = c.length ? "Igrača za prepisivanje: " + c.length + ". Primjer za prva tri:" : "Nema igrača s praznom poviješću – prepisivanje nije potrebno.";
   $("#migPreview").textContent = c.slice(0, 3).map((x) => displayName(x.p) + "\n" + x.text).join("\n\n");

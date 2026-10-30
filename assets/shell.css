@@ -32,7 +32,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---- Header i izbornik kao na curling.hr ---- */
 .site-header { background: var(--red); color: #fff; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
-.header-inner { max-width: 1240px; margin: 0 auto; padding: 0.75rem 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.header-inner { max-width: 1100px; margin: 0 auto; padding: 0.75rem 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .header-brand { display: flex; align-items: center; gap: 0.85rem; text-decoration: none; color: #fff; min-width: 0; }
 .header-brand:hover, .header-brand:focus { color: #fff; text-decoration: none; }
 .header-logo { width: 62px; height: 62px; border-radius: 50%; flex-shrink: 0; }
@@ -51,7 +51,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .nav-toggle span { display: block; width: 24px; height: 2px; background: #fff; border-radius: 2px; }
 
 .site-nav { background: var(--red-dark); }
-.site-nav ul { max-width: 1240px; margin: 0 auto; padding: 0 1.25rem; display: flex; flex-wrap: wrap; list-style: none; gap: 0; }
+.site-nav ul { max-width: 1100px; margin: 0 auto; padding: 0 1.25rem; display: flex; flex-wrap: wrap; list-style: none; gap: 0; }
 .site-nav ul li a { display: block; color: rgba(255,255,255,0.9); padding: 0.55rem 0.85rem; font-size: 0.88rem; font-weight: 500;
   text-decoration: none; transition: background 0.15s, color 0.15s; border-bottom: 2px solid transparent; }
 .site-nav ul li a:hover, .site-nav ul li a.active { color: #fff; background: rgba(255,255,255,0.12); border-bottom-color: rgba(255,255,255,0.6); text-decoration: none; }
@@ -71,7 +71,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @media (max-width: 420px) { .header-inner { padding: 0.6rem 1rem; } }
 
 /* ---- Sadržaj ---- */
-main { max-width: 1240px; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
+main { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.25rem 2rem; }
 .status { padding: 12px 16px; border-radius: var(--radius); margin-bottom: 16px; white-space: pre-wrap; }
 .status.info { background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
 .status.error { background: var(--err-bg); color: var(--err); }
@@ -124,16 +124,25 @@ tr.inactive td { color: var(--muted); }
 .signin h2 { margin: 0 0 8px; font-size: 1.3rem; }
 .signin p { color: var(--muted); max-width: 46ch; margin: 0 auto 20px; }
 
-/* ---- Bočni panel ---- */
-.backdrop { position: fixed; inset: 0; background: var(--shade); z-index: 200; }
-.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(580px, 100%); background: var(--surface); z-index: 201;
-  display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.25); }
-.drawer-head { display: flex; align-items: flex-start; gap: 12px; padding: 18px 22px 12px; border-bottom: 3px solid var(--red); }
-.drawer-head h2 { margin: 0; font-size: 1.35rem; }
-.drawer-head .sub { color: var(--muted); font-size: .92rem; }
-.drawer-head .close { margin-left: auto; font-size: 1.3rem; line-height: 1; padding: 4px 10px; }
-.drawer-body { padding: 18px 22px; overflow-y: auto; flex: 1; }
-.drawer-foot { padding: 12px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; }
+/* ---- Modalni prozor (kao na curling.hr: zatamnjena pozadina, prozor na sredini, iznad headera) ---- */
+.backdrop { position: fixed; inset: 0; background: rgba(28,43,57,0.7); z-index: 1100; }
+.drawer { position: fixed; z-index: 1101; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(640px, calc(100% - 32px)); max-height: calc(100dvh - 80px);
+  background: var(--surface); border-radius: 14px; display: flex; flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0,0,0,.35); overflow: hidden; }
+.drawer-head { position: relative; padding: 24px 64px 14px 28px; border-bottom: 3px solid var(--red); }
+.drawer-head h2 { margin: 0; font-size: 1.3rem; }
+.drawer-head .sub { color: var(--muted); font-size: .92rem; margin-top: 2px; }
+.drawer-head .close { position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; border-radius: 50%; border: none;
+  background: var(--th-bg); color: var(--text); font-size: 18px; line-height: 1; padding: 0; cursor: pointer; }
+.drawer-head .close:hover { background: var(--border); }
+.drawer-body { padding: 18px 28px; overflow-y: auto; flex: 1; }
+.drawer-foot { padding: 14px 28px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .drawer { width: calc(100% - 16px); max-height: calc(100dvh - 32px); }
+  .drawer-head { padding: 20px 56px 12px 16px; }
+  .drawer-body, .drawer-foot { padding-left: 16px; padding-right: 16px; }
+}
 dl.fields { display: grid; grid-template-columns: minmax(150px, 40%) 1fr; gap: 7px 16px; margin: 0 0 18px; }
 dl.fields dt { color: var(--muted); }
 dl.fields dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
@@ -155,7 +164,7 @@ details summary { cursor: pointer; font-weight: 600; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1a1a1a; color: #fff;
   padding: 10px 18px; border-radius: var(--radius); z-index: 300; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
 
-footer { max-width: 1240px; margin: 0 auto; padding: 0 1rem 2rem; font-size: .88rem; }
+footer { max-width: 1100px; margin: 0 auto; padding: 0 1.25rem 2rem; font-size: .88rem; }
 footer a { color: var(--muted); }
 .tool { padding: 20px; margin-bottom: 18px; }
 .tool h2 { margin: 0 0 8px; font-size: 1.15rem; }
@@ -169,8 +178,8 @@ code { font-family: Consolas, 'Courier New', monospace; font-size: .9em; }
   dl.fields dd { margin-bottom: 9px; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .drawer { animation: slidein .18s ease-out; }
-  @keyframes slidein { from { transform: translateX(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+  .drawer { animation: popin .16s ease-out; }
+  @keyframes popin { from { transform: translate(-50%, -48%); opacity: .4; } to { transform: translate(-50%, -50%); opacity: 1; } }
 }
 
 /* ---- Početna stranica internog dijela ---- */
