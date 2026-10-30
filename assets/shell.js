@@ -29,6 +29,15 @@
 
   const ICON_HOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>';
   const ICON_LOGOUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>';
+  const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>';
+  const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+  const ICON_MONITOR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
+  /* Kao na curling.hr: ikona pokazuje temu koja će se uključiti KLIKOM */
+  const THEME_UI = {
+    auto:  { next: ICON_SUN,     title: "Klikni za SVIJETLI prikaz boja." },
+    light: { next: ICON_MOON,    title: "Klikni za TAMNI prikaz boja." },
+    dark:  { next: ICON_MONITOR, title: "Klikni za prikaz boja prema postavkama SUSTAVA." }
+  };
   const ICON_USER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>';
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -46,11 +55,11 @@
       '<div class="header-inner">' +
         '<a class="header-brand" href="' + esc(ROOT) + '">' +
           '<img src="https://curling.hr/assets/images/hcs-logo.png" alt="HCS Logo" class="header-logo">' +
-          '<span class="header-titles"><span class="header-title">Interno</span><span class="header-subtitle">Hrvatski curling savez</span></span>' +
+          '<span class="header-titles"><span class="header-title">Hrvatski curling savez</span><span class="header-subtitle">Interne stranice</span></span>' +
         "</a>" +
         '<div class="header-controls">' +
-          '<span id="shellUser" class="user-name hidden"></span>' +
           '<a href="https://curling.hr/" class="hdr-btn" title="Javna stranica Saveza">' + ICON_HOME + '<span class="sr-only">Javna stranica Saveza</span></a>' +
+          '<button id="shellTheme" class="hdr-btn"></button>' +
           '<button id="shellLogin" class="hdr-btn hidden" title="Prijava">' + ICON_USER + '<span class="sr-only">Prijava</span></button>' +
           '<button id="shellLogout" class="hdr-btn hidden" title="Odjava">' + ICON_LOGOUT + '<span class="sr-only">Odjava</span></button>' +
           '<button id="shellNavToggle" class="nav-toggle hidden" aria-label="Izbornik" aria-expanded="false" aria-controls="shellNav"><span></span><span></span><span></span></button>' +
@@ -76,6 +85,14 @@
     $("#shellLogin").addEventListener("click", login);
     $("#shellLogin2").addEventListener("click", login);
     $("#shellLogout").addEventListener("click", () => msalApp && msalApp.logoutRedirect({ account, postLogoutRedirectUri: ROOT }));
+
+    const th = $("#shellTheme");
+    const paintTheme = () => {
+      const ui = THEME_UI[window.HcsTheme ? HcsTheme.get() : "auto"];
+      th.innerHTML = ui.next; th.title = ui.title; th.setAttribute("aria-label", ui.title);
+    };
+    th.addEventListener("click", () => { if (window.HcsTheme) { HcsTheme.apply(HcsTheme.next(HcsTheme.get())); paintTheme(); } });
+    paintTheme();
 
     const nav = $("#shellNav"), tgl = $("#shellNavToggle");
     tgl.addEventListener("click", () => { const open = nav.classList.toggle("open"); tgl.setAttribute("aria-expanded", String(open)); });
@@ -117,10 +134,10 @@
     $("#shellLogin").classList.remove("hidden");
   }
   function signedIn() {
-    const u = $("#shellUser");
-    u.textContent = account.name || account.username; u.title = account.username || "";
-    u.classList.remove("hidden");
-    const lo = $("#shellLogout"); lo.classList.remove("hidden"); lo.title = "Odjava (" + (account.username || account.name || "") + ")";
+    const who = [account.name, account.username].filter(Boolean).join(", ");
+    const lo = $("#shellLogout"); lo.classList.remove("hidden");
+    lo.title = "Prijavljen: " + who + "\nKlikni za odjavu.";
+    lo.querySelector(".sr-only").textContent = "Odjava (" + who + ")";
     roles = (account.idTokenClaims && Array.isArray(account.idTokenClaims.roles)) ? account.idTokenClaims.roles : null;
     renderNav();
     const mod = document.getElementById("module");
