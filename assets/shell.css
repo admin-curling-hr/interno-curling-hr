@@ -194,3 +194,6 @@ code { font-family: Consolas, 'Courier New', monospace; font-size: .9em; }
 .tile ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 14px; flex-wrap: wrap; }
 .tile ul a { color: var(--link); font-weight: 600; text-decoration: none; }
 .tile ul a:hover { text-decoration: underline; }
+
+/* Korisnici bez prava uređivanja ne vide gumbe za unos i izmjene */
+body.readonly .edit-only { display: none !important; }

@@ -31,7 +31,7 @@
         <option value="soon">Ističe u 30 dana</option>
       </select>
       <span class="spacer"></span>
-      <button id="btnNewPlayer" class="btn btn-primary">Novi igrač</button>
+      <button id="btnNewPlayer" class="btn btn-primary edit-only">Novi igrač</button>
     </div>
     <p class="stats" id="pStats"></p>
     <div class="card scroll"><table id="pTable"><thead></thead><tbody></tbody></table></div>
@@ -46,7 +46,7 @@
         <option value="all">Svi klubovi</option>
       </select>
       <span class="spacer"></span>
-      <button id="btnNewClub" class="btn btn-primary">Novi klub</button>
+      <button id="btnNewClub" class="btn btn-primary edit-only">Novi klub</button>
     </div>
     <p class="stats" id="cStats"></p>
     <div class="card scroll"><table id="cTable"><thead></thead><tbody></tbody></table></div>
@@ -64,7 +64,7 @@
         <select id="tCat" aria-label="Kategorija"></select>
         <select id="tDisc" aria-label="Disciplina"></select>
         <span class="spacer"></span>
-        <button id="btnNewTeam" class="btn btn-primary">Nova ekipa</button>
+        <button id="btnNewTeam" class="btn btn-primary edit-only">Nova ekipa</button>
       </div>
       <p class="stats" id="tStats"></p>
       <div class="card scroll"><table id="tTable"><thead></thead><tbody></tbody></table></div>
@@ -76,6 +76,13 @@
       <h2>Mapa stupaca</h2>
       <p class="help">Prikazna i interna imena stupaca svih registara. Ne sadrži osobne podatke – možete je poslati pri dogradnji aplikacije.</p>
       <div id="colMaps"></div>
+    </div>
+    <div class="card tool">
+      <h2>Uklanjanje kluba igračima s prestankom registracije</h2>
+      <p>Igračima kojima je upisan datum prestanka registracije uklanja se klub. Ako u povijesti još nema retka o prestanku, prije uklanjanja se dodaje („<em>datum</em> Prestanak registracije: <em>klub</em>“), tako da podatak o zadnjem klubu ostane sačuvan.</p>
+      <p id="clrInfo"></p>
+      <button id="btnClr" class="btn btn-primary">Ukloni klub</button>
+      <p id="clrProgress" aria-live="polite"></p>
     </div>
     <div class="card tool">
       <h2>Skupni upis državljanstva</h2>
@@ -175,7 +182,7 @@ const BROJ_FIX = { k: "broj", label: "Registarski broj", type: "text", req: true
   help: "Mijenjati samo radi ispravka pogreške – registarski broj se inače ne mijenja." };
 const PLAYER_FIX = [
   BROJ_FIX,
-  { k: "klub", label: "Klub", type: "club", req: true },
+  { k: "klub", label: "Klub", type: "club", help: "Prazno ako je registracija prestala." },
   { k: "datumReg", label: "Datum registracije", type: "date", req: true },
   { k: "prestanak", label: "Datum prestanka registracije", type: "date" },
   { k: "povijest", label: "Povijest registracija", type: "text",
@@ -384,6 +391,10 @@ function parseHistory(text) {
     return { date: m[1].padStart(2, "0") + "." + m[2].padStart(2, "0") + "." + m[3] + ".", stop: /^prestanak/i.test(m[4]), type: m[4], club: m[5] };
   });
 }
+function lastClubFromHistory(p) {
+  const ev = parseHistory(pv(p, "povijest")).filter((e) => !e.raw);
+  return ev.length ? ev[ev.length - 1].club : "";
+}
 function histLine(iso, stop, club) { return hrDate(iso) + " " + (stop ? "Prestanak registracije" : "Registracija") + ": " + club; }
 function appendHist(text, line) { const t = String(text || "").replace(/\s+$/, ""); return t ? t + "\n" + line : line; }
 
@@ -396,7 +407,7 @@ function route() {
   if (S.view === "igraci") renderPlayers();
   if (S.view === "klubovi") renderClubs();
   if (S.view === "ekipe") renderTeams();
-  if (S.view === "alati") renderTools();
+  if (S.view === "alati") { if (S.canEdit) renderTools(); else { location.hash = "#igraci"; } }
 }
 window.addEventListener("hashchange", () => { if (S.siteId) route(); });
 
@@ -540,13 +551,13 @@ function openPlayer(id) {
     ]) +
     "<h3>Registracija</h3>" +
     dl([
-      ["Klub", esc(playerClubName(p))],
+      act ? ["Klub", esc(playerClubName(p))] : ["Zadnji klub", esc(playerClubName(p) || lastClubFromHistory(p))],
       ["Datum registracije", esc(hrDate(isoDate(pv(p, "datumReg"))))],
       ["Prestanak registracije", esc(hrDate(isoDate(pv(p, "prestanak"))))]
     ]) +
     "<h3>Povijest registracija</h3>" + histHtml + modifiedLine(p) +
     "</div>" +
-    '<div class="drawer-foot">' +
+    '<div class="drawer-foot edit-only">' +
     '<button class="btn btn-primary" data-act="reg">Registracija kluba</button>' +
     (act ? '<button class="btn" data-act="stop">Prestanak registracije</button>' : "") +
     '<button class="btn" data-act="edit">Uredi podatke</button></div>');
@@ -685,7 +696,7 @@ function stopForm(p) {
   const def = { k: "prestanak", label: "Datum prestanka registracije", type: "date", req: true };
   formDrawer("Prestanak registracije", esc(displayName(p) + " · " + playerClubName(p)),
     inputHtml(def, todayIso(), "igraci", P) +
-    '<p class="help">Igrač ostaje u registru, a u povijest se dodaje redak o prestanku registracije.</p>',
+    '<p class="help">Igrač ostaje u registru, klub mu se uklanja, a u povijest se dodaje redak o prestanku registracije u klubu ' + esc(playerClubName(p)) + ".</p>",
     "Upiši prestanak",
     async (form) => {
       const v = readValues(form, [def]); if (!v.prestanak) throw new Error("Upišite datum prestanka.");
@@ -693,6 +704,7 @@ function stopForm(p) {
       if (reg && v.prestanak < reg) throw new Error("Datum prestanka ne može biti prije datuma registracije (" + hrDate(reg) + ").");
       const np = await patchItem("igraci", p.id, {
         [P.prestanak]: graphDate(v.prestanak),
+        [P.klub]: null,
         [P.povijest]: appendHist(pv(p, "povijest"), histLine(v.prestanak, true, playerClubName(p))),
         [P.naslov]: titleName(p)
       });
@@ -714,6 +726,8 @@ function playerEditForm(p) {
       const v = readValues(form, all); const err = validate(all, v); if (err) throw new Error(err);
       if (dupBroj(v.broj, p.id)) throw new Error("Registarski broj " + v.broj + " već ima drugi igrač.");
       if (v.prestanak && v.datumReg && v.prestanak < v.datumReg) throw new Error("Datum prestanka ne može biti prije datuma registracije.");
+      if (!v.prestanak && !v.klub) throw new Error("Registrirani igrač mora imati klub. Ako je registracija prestala, upišite i datum prestanka.");
+      if (v.prestanak && v.klub) throw new Error("Igrač s prestankom registracije ne smije imati klub – uklonite klub ili datum prestanka.");
       const fields = toGraphFields(all, v, P, orig);
       if (!Object.keys(fields).length) { toast("Nema promjena."); openPlayer(p.id); return; }
       fields[P.naslov] = v.prezime + " " + v.ime;
@@ -784,7 +798,7 @@ function openClub(id) {
     '<div class="drawer-body">' +
     dl(CLUB_FORM.map((d) => [d.label, val(d)])) +
     modifiedLine(c) + "</div>" +
-    '<div class="drawer-foot"><button class="btn btn-primary" data-act="edit">Uredi podatke</button></div>');
+    '<div class="drawer-foot edit-only"><button class="btn btn-primary" data-act="edit">Uredi podatke</button></div>');
   $("#drawer").querySelector('[data-act="edit"]').addEventListener("click", () => clubForm(c));
 }
 
@@ -863,7 +877,7 @@ function openTeam(id) {
       ["Kategorija", esc(ev(t, "kategorija"))],
       ["Disciplina", esc(ev(t, "disciplina"))]
     ]) + modifiedLine(t) + "</div>" +
-    '<div class="drawer-foot"><button class="btn btn-primary" data-act="edit">Uredi podatke</button></div>');
+    '<div class="drawer-foot edit-only"><button class="btn btn-primary" data-act="edit">Uredi podatke</button></div>');
   const dr = $("#drawer");
   dr.querySelector('[data-act="edit"]').addEventListener("click", () => teamForm(t));
   const cb = dr.querySelector("[data-cid]");
@@ -959,8 +973,37 @@ $("#btnDrz").addEventListener("click", async () => {
   renderDrz();
 });
 
+function clrCandidates() { return S.players.filter((p) => !isActive(p) && pv(p, "klub")); }
+function renderClr() {
+  const c = clrCandidates();
+  $("#clrInfo").textContent = c.length ? "Igrača s prestankom registracije kojima je još upisan klub: " + c.length + "." : "Nema igrača s prestankom registracije kojima je upisan klub.";
+  $("#btnClr").disabled = !c.length;
+}
+$("#btnClr").addEventListener("click", async () => {
+  const c = clrCandidates();
+  if (!c.length || !confirm("Ukloniti klub za " + c.length + " igrača s prestankom registracije?")) return;
+  const btn = $("#btnClr"), prog = $("#clrProgress"); btn.disabled = true;
+  let ok = 0; const fails = [];
+  for (const [i, p] of c.entries()) {
+    prog.textContent = "Obrađujem " + (i + 1) + " / " + c.length + "…";
+    try {
+      const club = playerClubName(p), end = isoDate(pv(p, "prestanak"));
+      const hasStop = parseHistory(pv(p, "povijest")).some((e) => e.stop && e.club === club);
+      const body = { [P.klub]: null };
+      if (!hasStop && club && end) body[P.povijest] = appendHist(pv(p, "povijest"), histLine(end, true, club));
+      await graph(itemPath("igraci", p.id) + "/fields", { method: "PATCH", body });
+      p.f[P.klub] = null; delete p.f[P.klub];
+      if (body[P.povijest]) p.f[P.povijest] = body[P.povijest];
+      ok++;
+    } catch (e) { fails.push(displayName(p) + ": " + e.message); }
+  }
+  prog.textContent = "Gotovo: obrađeno " + ok + (fails.length ? ", neuspjelo " + fails.length + ": " + fails.join("; ") : ".");
+  renderClr();
+});
+
 function renderTools() {
   renderColMaps();
+  renderClr();
   renderDrz();
   const c = migrationCandidates();
   $("#migInfo").textContent = c.length ? "Igrača za prepisivanje: " + c.length + ". Primjer za prva tri:" : "Nema igrača s praznom poviješću – prepisivanje nije potrebno.";
@@ -986,7 +1029,14 @@ $("#btnMigrate").addEventListener("click", async () => {
 });
 
 /* ================= Pokretanje ================= */
-Shell.ready.then(loadAll);
+/* Uređivanje samo s ulogom aplikacije "Registri.Uredivanje" (Entra app role).
+   Ostali vide registre samo za čitanje. Stvarnu zaštitu podataka daju dozvole na SharePoint listama. */
+const EDIT_ROLE = "Registri.Uredivanje";
+Shell.ready.then(({ roles }) => {
+  S.canEdit = Array.isArray(roles) && roles.includes(EDIT_ROLE);
+  document.body.classList.toggle("readonly", !S.canEdit);
+  loadAll();
+});
 </script>
 </body>
 </html>
