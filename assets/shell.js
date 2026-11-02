@@ -15,15 +15,19 @@
 
   /* ===== Izbornik =====
      Jedna razina, kao na curling.hr. "href" je relativan na korijen internog dijela,
-     osim ako počinje s https:// (vanjska poveznica). Opcionalno "role": stavka se
-     prikazuje samo korisnicima s tom ulogom aplikacije (Entra app roles).
+     osim ako počinje s https:// (vanjska poveznica). Opcionalno "role" (jedna uloga ili popis):
+     stavka se prikazuje samo korisnicima s barem jednom od tih uloga aplikacije (Entra app roles).
      Stvarnu zaštitu daju dozvole na SharePointu, odnosno GitHub token za vijesti.
      "desc" se prikazuje na pločici na početnoj stranici. */
+  const REG = ["Registri.Pregled", "Registri.Uredivanje"];   // tko vidi registre
+  const OBR = ["Obrasci.Klub", "Registri.Uredivanje"];       // tko vidi obrasce klubova
   const MENU = [
     { label: "Početna", href: "" },
-    { label: "Registar igrača", href: "registri/#igraci", desc: "Registrirani igrači, registracije, prestanci i zdravstvena uvjerenja." },
-    { label: "Registar klubova", href: "registri/#klubovi", desc: "Klubovi članovi Saveza i njihovi podaci." },
-    { label: "Registar ekipa", href: "registri/#ekipe", desc: "Ekipe klubova po kategorijama i disciplinama." },
+    { label: "Registar igrača", href: "registri/#igraci", role: REG, desc: "Registrirani igrači, registracije, prestanci i zdravstvena uvjerenja." },
+    { label: "Registar klubova", href: "registri/#klubovi", role: REG, desc: "Klubovi članovi Saveza i njihovi podaci." },
+    { label: "Registar ekipa", href: "registri/#ekipe", role: REG, desc: "Ekipe klubova po kategorijama i disciplinama." },
+    { label: "Prijava ekipe", href: "prijava/", role: OBR, desc: "Prijava ekipe na natjecanje (PDF za slanje Savezu)." },
+    { label: "Registracija igrača", href: "registracija/", role: OBR, desc: "Zahtjev za registraciju igrača (PDF za slanje Savezu)." },
     { label: "Uređivanje vijesti", href: "vijesti/", role: "Vijesti.Uredivanje", desc: "Pisanje i objava vijesti na javnoj stranici Saveza." }
   ];
 
@@ -101,7 +105,8 @@
 
   const itemUrl = (m) => /^https?:\/\//.test(m.href) ? m.href : ROOT + m.href;
   function visibleMenu() {
-    return MENU.filter((m) => !m.role || (roles && roles.includes(m.role)));
+    const need = (m) => [].concat(m.role || []);
+    return MENU.filter((m) => !m.role || (roles && need(m).some((r) => roles.includes(r))));
   }
   /* Aktivna stavka: ista stranica i isti hash; bez hasha vrijedi prva stavka te stranice */
   function markActive() {

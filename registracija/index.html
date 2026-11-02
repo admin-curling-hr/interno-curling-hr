@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Zahtjev za registraciju igrača — Interne stranice — Hrvatski curling savez</title>
+<link rel="icon" href="../assets/images/hcs-logo.png">
+<link rel="stylesheet" href="../assets/shell.css">
+<script src="../assets/theme.js"></script>
+<style>
+/* Stilovi preneseni s curling.hr/registracija/ */
+
+
+
+.intro { font-size: 0.9rem; color: var(--muted); margin: 0.25rem 0 1rem; }
+
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1rem 1.15rem 1.15rem;
+  margin-bottom: 1rem;
+}
+.card h2 {
+  font-size: 1rem;
+  color: var(--red-dark);
+  margin-bottom: 0.7rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.card h2 .br {
+  display: inline-flex;
+  width: 1.5rem; height: 1.5rem;
+  border-radius: 50%;
+  background: var(--red);
+  color: #fff;
+  font-size: 0.8rem;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+
+label.lbl, .lbl {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+  color: #333;
+}
+.lbl .req { color: var(--red); }
+
+input[type=text], input[type=date], select {
+  width: 100%;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--text);
+}
+input:focus, select:focus {
+  outline: 2px solid var(--red);
+  outline-offset: 0;
+  border-color: var(--red);
+}
+.invalid { border-color: var(--err) !important; background: var(--err-bg) !important; }
+
+.hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; white-space: pre-line; }
+
+/* ---- Zaštita podataka i potvrda kluba ---- */
+.tekst-blok { font-size: 0.85rem; color: #333; line-height: 1.5; }
+.izjave p { font-size: 0.85rem; color: #333; margin: 0 0 0.6rem; line-height: 1.5; }
+.slazem { display: flex; gap: 0.7rem; align-items: flex-start; margin: 0.9rem 0 1rem; padding: 0.75rem 0.9rem; background: #fbf3f3; border: 1px solid #ecd0d0; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+.slazem input { width: 1.3rem; height: 1.3rem; margin-top: 0.1rem; flex: none; accent-color: var(--red); cursor: pointer; }
+.slazem:has(input.invalid) { border-color: var(--red); box-shadow: 0 0 0 2px rgba(204,0,0,.25); }
+.razmak { margin-top: 0.75rem; }
+
+/* ---- Gumbi i poruke ---- */
+.actions { display: flex; gap: 0.7rem; flex-wrap: wrap; align-items: center; margin-top: 0.4rem; }
+.btn {
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: 0;
+  border-radius: 5px;
+  padding: 0.65rem 1.2rem;
+  cursor: pointer;
+}
+.btn-primary { background: var(--red); color: #fff; }
+.btn-primary:hover { background: var(--red-dark); }
+.btn-primary:disabled { opacity: 0.6; cursor: wait; }
+.btn-sec { background: #fff; color: #333; border: 1px solid var(--border); }
+.btn-sec:hover { background: #f4f4f4; }
+
+.poruka { border-radius: 5px; padding: 0.7rem 0.9rem; font-size: 0.9rem; margin-bottom: 0.9rem; display: none; }
+.poruka.err { display: block; background: var(--err-bg); color: var(--err); border-left: 4px solid var(--err); }
+.poruka.ok { display: block; background: var(--ok-bg); color: var(--ok); border-left: 4px solid var(--ok); }
+.poruka ul { margin: 0.3rem 0 0 1.2rem; }
+.poruka strong { display: block; }
+
+.privatnost { font-size: 0.78rem; color: var(--muted); margin-top: 1rem; }
+.hidden { display: none !important; }
+.napomena-rod { margin: -0.35rem 0 0.75rem; font-style: italic; }
+
+/* ---- Prilagodbe za interne stranice (tema ljuske) ---- */
+:root { --white: var(--surface); }
+.form-wrap { max-width: 980px; margin: 0 auto; }
+.form-wrap .card { border: none; }
+.form-wrap input[type=text], .form-wrap input[type=date], .form-wrap input[type=email], .form-wrap input[type=tel], .form-wrap select, .form-wrap textarea { background: var(--surface); color: var(--text); border-color: var(--border); }
+.form-wrap .btn-sec { background: var(--surface); color: var(--text); }
+.form-wrap .btn-sec:hover { background: var(--hover); }
+[data-theme="dark"] .form-wrap .lbl, [data-theme="dark"] .form-wrap label.lbl,
+[data-theme="dark"] .form-wrap .izjave p, [data-theme="dark"] .form-wrap .tekst-blok,
+[data-theme="dark"] .form-wrap .igrac .m-lbl { color: var(--text); }
+[data-theme="dark"] .form-wrap .card h2 { color: var(--link); }
+[data-theme="dark"] .form-wrap .slazem { background: var(--err-bg); border-color: var(--border); }
+[data-theme="dark"] .form-wrap .igrac { border-bottom-color: var(--border); }
+</style>
+</head>
+<body data-module="registracija">
+<main>
+<div id="noRole" class="card notice hidden" style="padding:28px;text-align:center">
+  <h2 style="margin:0 0 8px;font-size:1.15rem">Nemate ovlast za ovaj obrazac</h2>
+  <p style="color:var(--muted)">Obrazac je dostupan ovlaštenim osobama klubova. Obratite se administratoru.</p>
+</div>
+<div id="module" hidden>
+<div class="form-wrap">
+<h1 class="page-title">Zahtjev za registraciju igrača</h1>
+  <p class="intro">Ovlaštena osoba kluba ispunjava Zahtjev, preuzima PDF i šalje Savezu e-poštom s adrese kluba na <span id="emailHcs">tajnik@curling.hr</span>.</p>
+
+  <form id="forma" novalidate autocomplete="off">
+
+    <div class="card">
+      <h2><span class="br">1</span> Klub i igrač</h2>
+      <p class="hint napomena-rod" id="napomenaRod"></p>
+      <div class="grid2">
+        <div>
+          <label class="lbl" for="klub">Klub koji podnosi zahtjev <span class="req">*</span></label>
+          <select id="klub" required></select>
+        </div>
+      </div>
+      <p class="hint">Zahtjev se podnosi i kad igrač prelazi iz drugog kluba: registracijom za novi klub prestaje registracija za dosadašnji. Raniju registraciju Savez provjerava sam u Matičnoj knjizi.</p>
+      <div class="grid2 razmak">
+        <div>
+          <label class="lbl" for="ime">Ime <span class="req">*</span></label>
+          <input type="text" id="ime" maxlength="50">
+        </div>
+        <div>
+          <label class="lbl" for="prezime">Prezime <span class="req">*</span></label>
+          <input type="text" id="prezime" maxlength="60">
+        </div>
+        <div>
+          <label class="lbl" for="rodjen">Datum rođenja <span class="req">*</span></label>
+          <input type="date" id="rodjen">
+          <p class="hint" id="hintRodjen"></p>
+        </div>
+        <div>
+          <label class="lbl" for="drzavljanstvo">Državljanstvo <span class="req">*</span></label>
+          <input type="text" id="drzavljanstvo" maxlength="60" placeholder="npr. hrvatsko">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="br">2</span> <span id="zastitaNaslov">Zaštita osobnih podataka</span></h2>
+      <p class="tekst-blok" id="zastita"></p>
+    </div>
+
+    <div class="card">
+      <h2><span class="br">3</span> <span id="potvrdaNaslov">Potvrda kluba</span></h2>
+      <div class="izjave" id="potvrde"></div>
+      <label class="slazem" for="slazem">
+        <input type="checkbox" id="slazem">
+        <span id="slazemTekst"></span>
+      </label>
+      <div class="grid2">
+        <div>
+          <label class="lbl" for="datum">Datum <span class="req">*</span></label>
+          <input type="date" id="datum">
+        </div>
+        <div>
+          <label class="lbl" for="ovlastena">Ovlaštena osoba kluba (ime i prezime) <span class="req">*</span></label>
+          <input type="text" id="ovlastena" maxlength="80">
+        </div>
+      </div>
+    </div>
+
+    <div id="poruka" class="poruka" role="alert" aria-live="polite"></div>
+
+    <div class="actions">
+      <button type="submit" class="btn btn-primary" id="btnPdf">Preuzmi PDF</button>
+      <button type="button" class="btn btn-sec" id="btnOcisti">Očisti obrazac</button>
+    </div>
+
+    <p class="privatnost">Podaci se upisuju samo u Vašem pregledniku, ne šalju se nikamo i nigdje se ne spremaju. PDF se izrađuje na Vašem uređaju.</p>
+  </form>
+</div>
+</div>
+</main>
+
+
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
+<script src="../assets/shell.js"></script>
+<script src="../assets/vendor/jspdf/jspdf.umd.min.js"></script>
+<script src="../assets/js/registracija.js"></script>
+<script>
+// Obrazac je dostupan uz ulogu "Obrasci.Klub" (ovlaštene osobe klubova) ili "Registri.Uredivanje" (Savez)
+Shell.ready.then(({ roles }) => {
+  const ok = Array.isArray(roles) && (roles.includes("Obrasci.Klub") || roles.includes("Registri.Uredivanje"));
+  if (!ok) { document.getElementById("module").hidden = true; document.getElementById("noRole").classList.remove("hidden"); }
+});
+</script>
+</body>
+</html>

@@ -417,6 +417,10 @@ function cmpVals(a, b) {
   const ea = a === "" || a == null, eb = b === "" || b == null;
   if (ea && eb) return 0; if (ea) return 1; if (eb) return -1;           // prazne uvijek na kraj
   if (typeof a === "number" && typeof b === "number") return a - b;
+  if (Array.isArray(a) && Array.isArray(b)) {          // složeni ključ: usporedba redom po dijelovima
+    for (let i = 0; i < Math.max(a.length, b.length); i++) { const c = cmpVals(a[i], b[i]); if (c) return c; }
+    return 0;
+  }
   return coll.compare(String(a), String(b));
 }
 function sortRows(rows, cols, st) {
@@ -824,9 +828,9 @@ const ev = (r, k) => r.f[E[k]];
 function teamClubName(t) { const id = ev(t, "klub"); return id ? clubName(clubById(id)) : ""; }
 function teamLabel(t) { return [ev(t, "kategorija"), ev(t, "disciplina")].filter(Boolean).join(" · "); }
 const TEAM_COLS = [
+  { key: "klub", label: "Klub", sort: (t) => [teamClubName(t), ev(t, "kategorija") || "", ev(t, "disciplina") || "", ev(t, "ekipa") || ""], cell: (t) => esc(teamClubName(t)) },
   { key: "kategorija", label: "Kategorija", sort: (t) => ev(t, "kategorija") || "", cell: (t) => esc(ev(t, "kategorija")) },
   { key: "disciplina", label: "Disciplina", sort: (t) => ev(t, "disciplina") || "", cell: (t) => esc(ev(t, "disciplina")) },
-  { key: "klub", label: "Klub", sort: (t) => teamClubName(t) + " " + (ev(t, "ekipa") || ""), cell: (t) => esc(teamClubName(t)) },
   { key: "ekipa", label: "Ekipa", sort: (t) => ev(t, "ekipa") || "", cell: (t) => esc(ev(t, "ekipa")) },
   { key: "kratko", label: "Kratki naziv", cls: "col-opt", sort: (t) => ev(t, "kratko") || "", cell: (t) => esc(ev(t, "kratko")) }
 ];
