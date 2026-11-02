@@ -16,15 +16,15 @@
   /* ===== Izbornik =====
      Jedna razina, kao na curling.hr. "href" je relativan na korijen internog dijela,
      osim ako počinje s https:// (vanjska poveznica). Opcionalno "role": stavka se
-     prikazuje samo korisnicima s tom ulogom aplikacije (Entra app roles); dok uloge
-     nisu definirane, prikazuju se sve stavke. Podatke ionako štite dozvole na SharePointu.
+     prikazuje samo korisnicima s tom ulogom aplikacije (Entra app roles).
+     Stvarnu zaštitu daju dozvole na SharePointu, odnosno GitHub token za vijesti.
      "desc" se prikazuje na pločici na početnoj stranici. */
   const MENU = [
     { label: "Početna", href: "" },
     { label: "Registar igrača", href: "registri/#igraci", desc: "Registrirani igrači, registracije, prestanci i zdravstvena uvjerenja." },
     { label: "Registar klubova", href: "registri/#klubovi", desc: "Klubovi članovi Saveza i njihovi podaci." },
     { label: "Registar ekipa", href: "registri/#ekipe", desc: "Ekipe klubova po kategorijama i disciplinama." },
-    { label: "Uređivanje vijesti", href: "https://curling.hr/edit/", desc: "Unos i uređivanje vijesti na javnoj stranici Saveza." }
+    { label: "Uređivanje vijesti", href: "vijesti/", role: "Vijesti.Uredivanje", desc: "Pisanje i objava vijesti na javnoj stranici Saveza." }
   ];
 
   const ICON_HOME = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>';
@@ -101,7 +101,7 @@
 
   const itemUrl = (m) => /^https?:\/\//.test(m.href) ? m.href : ROOT + m.href;
   function visibleMenu() {
-    return MENU.filter((m) => !m.role || !roles || roles.includes(m.role));
+    return MENU.filter((m) => !m.role || (roles && roles.includes(m.role)));
   }
   /* Aktivna stavka: ista stranica i isti hash; bez hasha vrijedi prva stavka te stranice */
   function markActive() {
