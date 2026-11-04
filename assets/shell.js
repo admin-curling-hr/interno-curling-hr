@@ -59,7 +59,7 @@
       '<div class="header-inner">' +
         '<a class="header-brand" href="' + esc(ROOT) + '">' +
           '<img src="https://curling.hr/assets/images/hcs-logo.png" alt="HCS Logo" class="header-logo">' +
-          '<span class="header-titles"><span class="header-title header-title-full">Hrvatski curling savez</span><span class="header-title header-title-short">HCS</span><span class="header-subtitle">Interne stranice</span></span>' +
+          '<span class="header-titles"><span class="header-title header-title-full">Hrvatski curling savez</span><span class="header-title header-title-short">HCS int</span><span class="header-subtitle">Interne stranice</span></span>' +
         "</a>" +
         '<div class="header-controls">' +
           '<a href="https://curling.hr/" class="hdr-btn" title="Javna stranica Saveza">' + ICON_HOME + '<span class="sr-only">Javna stranica Saveza</span></a>' +
